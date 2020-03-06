@@ -1,0 +1,37 @@
+globalvar define planeForCollision = 5;
+
+rule: "Draw Line"
+Event.OngoingGlobal
+{
+    CreateHudText(HostPlayer(), EyePosition(HostPlayer()), Null(), Null(), Location.Left, 0, Color.White, Color.White, Color.White, StringRev.VisibleToAndString, Spectators.DefaultVisibility);
+    CreateBeamEffect(AllPlayers(), BeamType.BadBeam, Vector(100,2,planeForCollision), Vector(-100,2,planeForCollision), Color.White, EffectRev.VisibleToPositionAndRadius);
+}
+
+rule: "Try to undo momentum"
+Event.OngoingPlayer
+{
+    define futurePosition = PositionOf(EventPlayer()) + VelocityOf(EventPlayer())*0.1;
+    if(ZOf(PositionOf(EventPlayer()))>5){
+        // while(ZOf(futurePosition)>5){
+        //     futurePosition = PositionOf(EventPlayer()) + VelocityOf(EventPlayer())*0.1;
+        //     StartThrottleInDirection(EventPlayer(), Vector(0,0,0), 0, Relative.ToPlayer, ThrottleBehavior.ReplaceExistingThrottle, ThrottleRev.DirectionAndMagnitude);
+        //     ApplyImpulse(EventPlayer(), Vector(0,0,-1), -Min(10*ZOf(EventPlayer())-5,0.1), Relative.ToWorld, ContraryMotion.Cancel);
+        //     Wait(0.001);
+        // }
+        ApplyImpulse(EventPlayer(), Down(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        ApplyImpulse(EventPlayer(), Up(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        ApplyImpulse(EventPlayer(), Left(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        ApplyImpulse(EventPlayer(), Right(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        ApplyImpulse(EventPlayer(), Forward(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        ApplyImpulse(EventPlayer(), Backward(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        // if(ZOf(futurePosition)<=5) StopThrottleInDirection(EventPlayer());
+        StartFacing(EventPlayer(),FacingDirectionOf(EventPlayer()), 20, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+        Teleport(EventPlayer(), PositionOf(EventPlayer())*Vector(1,1,0)+ Vector(0,0,5));
+        Wait(0.016);
+        StopFacing();
+    }
+    Wait(0.001);
+    Loop();
+}
+
+
