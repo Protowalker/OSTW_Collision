@@ -1,37 +1,45 @@
+import "LiveVarEditLib.del";
+
 globalvar define planeForCollision = 5;
+
+macro prediction: GetVariable(0);
+macro tickRate: GetVariable(1);
 
 rule: "Draw Line"
 Event.OngoingGlobal
 {
-    CreateHudText(HostPlayer(), EyePosition(HostPlayer()), Null(), Null(), Location.Left, 0, Color.White, Color.White, Color.White, StringRev.VisibleToAndString, Spectators.DefaultVisibility);
+    CreateHudText(HostPlayer(), EyePosition(HostPlayer()), Null(), Null(), Location.Right, 0, Color.White, Color.White, Color.White, StringRev.VisibleToAndString, Spectators.DefaultVisibility);
     CreateBeamEffect(AllPlayers(), BeamType.BadBeam, Vector(100,2,planeForCollision), Vector(-100,2,planeForCollision), Color.White, EffectRev.VisibleToPositionAndRadius);
+    CreateMenuOptionFloat("Prediction", 0, 1, 0.1, 0.3);
+    CreateMenuOptionFloat("Tick Rate", 1, 32, 10, 100);
+}
+
+rule: "Toggle UI"
+Event.OngoingPlayer
+if(HostPlayer() == EventPlayer() && IsButtonHeld(EventPlayer(), Button.Crouch) && IsButtonHeld(EventPlayer(), Button.Interact)){
+    ToggleUI();
 }
 
 rule: "Try to undo momentum"
 Event.OngoingPlayer
 {
-    define futurePosition = PositionOf(EventPlayer()) + VelocityOf(EventPlayer())*0.1;
-    if(ZOf(PositionOf(EventPlayer()))>5){
-        // while(ZOf(futurePosition)>5){
-        //     futurePosition = PositionOf(EventPlayer()) + VelocityOf(EventPlayer())*0.1;
-        //     StartThrottleInDirection(EventPlayer(), Vector(0,0,0), 0, Relative.ToPlayer, ThrottleBehavior.ReplaceExistingThrottle, ThrottleRev.DirectionAndMagnitude);
-        //     ApplyImpulse(EventPlayer(), Vector(0,0,-1), -Min(10*ZOf(EventPlayer())-5,0.1), Relative.ToWorld, ContraryMotion.Cancel);
-        //     Wait(0.001);
-        // }
+    define futurePosition = PositionOf(EventPlayer()) + VelocityOf(EventPlayer())*(prediction/10);
+    ConstrainPlayerToPlane(Vector(0,0,-1), Vector(0,0,5), EventPlayer());
+    Wait(tickRate/1000);
+    Loop();
+}
+
+
+method ConstrainPlayerToPlane(define normal, define position, define player){
         ApplyImpulse(EventPlayer(), Down(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
         ApplyImpulse(EventPlayer(), Up(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
         ApplyImpulse(EventPlayer(), Left(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
         ApplyImpulse(EventPlayer(), Right(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
         ApplyImpulse(EventPlayer(), Forward(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
         ApplyImpulse(EventPlayer(), Backward(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
-        // if(ZOf(futurePosition)<=5) StopThrottleInDirection(EventPlayer());
-        StartFacing(EventPlayer(),FacingDirectionOf(EventPlayer()), 20, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
-        Teleport(EventPlayer(), PositionOf(EventPlayer())*Vector(1,1,0)+ Vector(0,0,5));
-        Wait(0.016);
-        StopFacing();
-    }
-    Wait(0.001);
-    Loop();
+        Wait(0.005);
+        define pointOnPlane = ProjectPointToPlane(normal, position, PositionOf(player),Vector(1,0,0));
+        Teleport(EventPlayer(), position+pointOnPlane);
 }
 
-
+macro ProjectPointToPlane(define normal,define position, define point, define xAxis): Vector(DotProduct(point-position, xAxis),0,DotProduct(point-position,CrossProduct(normal, xAxis)));
