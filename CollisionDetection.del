@@ -1,9 +1,12 @@
 import "LiveVarEditLib.del";
 
 globalvar define planeForCollision = 5;
+playervar define lastPosition;
 
 macro prediction: GetVariable(0);
 macro tickRate: GetVariable(1);
+
+globalvar define AABBs = [];
 
 rule: "Draw Line"
 Event.OngoingGlobal
@@ -20,26 +23,59 @@ if(HostPlayer() == EventPlayer() && IsButtonHeld(EventPlayer(), Button.Crouch) &
     ToggleUI();
 }
 
-rule: "Try to undo momentum"
+rule:"Create Box"
 Event.OngoingPlayer
-{
-    define futurePosition = PositionOf(EventPlayer()) + VelocityOf(EventPlayer())*(prediction/10);
-    ConstrainPlayerToPlane(Vector(0,0,-1), Vector(0,0,5), EventPlayer());
-    Wait(tickRate/1000);
-    Loop();
+if(IsButtonHeld(EventPlayer(), Button.Interact)){
+    AABB testBox;
+    testBox.topbackleft = PositionOf(EventPlayer())+Vector(-5,5,-5);
+    testBox.bottomfrontright = PositionOf(EventPlayer())-Vector(-5,5,-5);
+    testBox.createLines();
+
 }
 
+// rule: "Try to undo momentum"
+// Event.OngoingPlayer
+// {
 
-method ConstrainPlayerToPlane(define normal, define position, define player){
-        ApplyImpulse(EventPlayer(), Down(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
-        ApplyImpulse(EventPlayer(), Up(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
-        ApplyImpulse(EventPlayer(), Left(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
-        ApplyImpulse(EventPlayer(), Right(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
-        ApplyImpulse(EventPlayer(), Forward(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
-        ApplyImpulse(EventPlayer(), Backward(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+
+//     lastPosition = PositionOf(EventPlayer());
+//     Wait(tickRate/1000);
+//     Loop();
+// }
+
+
+method StopMomentum(ref define player){
+        ApplyImpulse(player, Down(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        ApplyImpulse(player, Up(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        ApplyImpulse(player, Left(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        ApplyImpulse(player, Right(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        ApplyImpulse(player, Forward(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+        ApplyImpulse(player, Backward(), 0.001, Relative.ToWorld, ContraryMotion.Cancel);
+}
+
+method ConstrainPlayerToPlane(ref define normal, ref define position, ref define player){
+        StopMomentum(player);
         Wait(0.005);
         define pointOnPlane = ProjectPointToPlane(normal, position, PositionOf(player),Vector(1,0,0));
         Teleport(EventPlayer(), position+pointOnPlane);
 }
 
-macro ProjectPointToPlane(define normal,define position, define point, define xAxis): Vector(DotProduct(point-position, xAxis),0,DotProduct(point-position,CrossProduct(normal, xAxis)));
+macro ProjectPointToPlane(ref define normal,ref define position, ref define point, ref define xAxis): Vector(DotProduct(point-position, xAxis),0,DotProduct(point-position,CrossProduct(normal, xAxis)));
+
+
+struct AABB {
+    public define topbackleft;
+    public define bottomfrontright;
+
+    public macro IsColliding(define point): XOf(topbackleft) < XOf(point) < XOf(bottomfrontright) && YOf(topbackleft) > YOf(point) > YOf(bottomfrontright) && ZOf(topbackleft) < ZOf(point) < ZOf(bottomfrontright);
+    public method createLines(){
+        define size = topbackleft-bottomfrontright;
+        define center = topbackleft - size/2;
+    
+        size = Vector(AbsoluteValue(XOf(size)),AbsoluteValue(YOf(size)),AbsoluteValue(ZOf(size)));
+        CreateBeamEffect(AllPlayers(), BeamType.BadBeam, topbackleft, bottomfrontright, Color.White, EffectRev.VisibleToPositionAndRadius);
+        CreateBeamEffect(AllPlayers(), BeamType.BadBeam, center + Vector(-XOf(size)/2,-YOf(size/2),-ZOf(size/2)), center -  Vector(-XOf(size)/2,-YOf(size/2),-ZOf(size/2)), Color.White, EffectRev.PositionAndRadius);
+        CreateBeamEffect(AllPlayers(), BeamType.BadBeam, center - Vector(0,0,ZOf(size)/2), center + Vector(0,0, ZOf(size)/2), Color.White, EffectRev.PositionAndRadius);
+        BigMessage(EventPlayer(), size);
+    }
+}
